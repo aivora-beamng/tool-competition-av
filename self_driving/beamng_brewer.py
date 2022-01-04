@@ -1,7 +1,7 @@
 import json
 import logging as log
 
-from beamngpy import BeamNGpy, Scenario, Vehicle
+from beamngpy import BeamNGpy, Scenario, Vehicle, StaticObject, ProceduralRing
 from beamngpy.sensors import Camera
 
 from self_driving.beamng_waypoint import BeamNGWaypoint
@@ -51,11 +51,18 @@ class BeamNGBrewer:
 
         self.vehicle: Vehicle = None
         self.camera: BeamNGCamera = None
+        self.ramp = None
+        self.ring = None
+        self.second_vehicle = None
         if road_nodes:
             self.setup_road_nodes(road_nodes)
+        self.setup_ramp()
+        self.setup_ring()
+        self.setup_second_vehicle()
         steps = 5
         self.params = SimulationParams(beamng_steps=steps, delay_msec=int(steps * 0.05 * 1000))
         self.vehicle_start_pose = BeamNGPose()
+
 
     def setup_road_nodes(self, road_nodes):
         self.road_nodes = road_nodes
@@ -72,6 +79,21 @@ class BeamNGBrewer:
         self.camera = BeamNGCamera(self.beamng, 'brewer_camera')
         return self.camera
 
+    def setup_ramp(self):
+        assert self.ramp is None
+        self.ramp = StaticObject(name='pyramp', pos=(81., 33., -28.0), rot=(0, 0, 15.25), scale=(1, 1, 1), shape='/levels/west_coast_usa/art/shapes/objects/ramp_massive.dae')
+        return self.ramp
+
+    def setup_ring(self):
+        assert self.ring is None
+        self.ring = ProceduralRing(name='pyring', pos=(81., 103., 10.), rot=(0, 0, -126.25), radius=5, thickness=2.5)
+        return self.ring
+    
+    def setup_second_vehicle(self):
+        assert self.second_vehicle is None
+        self.second_vehicle = Vehicle('heading', model='autobello', license='heading', color='yellow')
+        return self.second_vehicle
+
     # TODO COnsider to transform brewer into a ContextManager or get rid of it...
     def bring_up(self):
 
@@ -84,7 +106,10 @@ class BeamNGBrewer:
         # After 1.18 to make a scenario one needs a running instance of BeamNG
         self.scenario = Scenario('tig', 'tigscenario')
         if self.vehicle:
+            print(self.vehicle_start_pose.pos)
             self.scenario.add_vehicle(self.vehicle, pos=self.vehicle_start_pose.pos, rot=self.vehicle_start_pose.rot)
+            self.scenario.add_object(self.ramp)
+            self.scenario.add_procedural_mesh(self.ring)
 
         if self.camera:
             self.scenario.add_camera(self.camera.camera, self.camera.name)
